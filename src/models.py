@@ -39,6 +39,8 @@ class Profile(db.Model):
     __tablename__ = "profiles"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(50))
+    last_name: Mapped[str] = mapped_column(String(100))
         
     # relationship with other tables
     user: Mapped["User"] = relationship(back_populates="profile")
@@ -48,18 +50,20 @@ class Profile(db.Model):
     def serialize(self):
         return {
             "id": self.id,
+            "name": self.name,
+            "last name": self.last_name,
             "Favourite Planets": [planet.name_planet for planet in self.planets],
             "Favourite People": [people.name_people for people in self.peoples]
         }
+    
 
 class Planet(db.Model):
-
     __tablename__ = "planets"
     id: Mapped[int] = mapped_column(primary_key=True)
     name_planet: Mapped[str] = mapped_column(String(100), unique=True)
 
     # relationship with other tables
-    profiles: Mapped["Profile"] = relationship(secondary="profile_planet", back_populates="planets")
+    profiles: Mapped[list["Profile"]] = relationship(secondary="profile_planet", back_populates="planets")
 
     def serialize(self):
         return {
@@ -73,10 +77,10 @@ class People(db.Model):
     name_people: Mapped[str] = mapped_column(String(100), unique=True)
 
    # relationship with other tables
-    profiles: Mapped["Profile"] = relationship(secondary="profile_people", back_populates="peoples")
+    profiles: Mapped[list["Profile"]] = relationship(secondary="profile_people", back_populates="peoples")
 
     def serialize(self):
         return {
             "id": self.id,
-            "name": self.name_people
+            "people name": self.name_people
         }
