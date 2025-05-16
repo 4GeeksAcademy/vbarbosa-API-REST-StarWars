@@ -1,59 +1,78 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean, ForeignKey, Column, Table
+from sqlalchemy import String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 db = SQLAlchemy()
 
-profile_planet = Table(
-    "profile_planet",
-    db.metadata,
-    Column("profile_id", ForeignKey("profiles.id"), primary_key=True),
-    Column("planet_id", ForeignKey("planets.id"), primary_key=True)
-)
-
-profile_people = Table(
-    "profile_people",
-    db.metadata,
-    Column("profile_id", ForeignKey("profiles.id"), primary_key=True),
-    Column("people_id", ForeignKey("peoples.id"), primary_key=True)
-)
-
 class User(db.Model):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    last_name: Mapped[str] = mapped_column(String(100))
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(nullable=False)
 
     # relationship with other tables
-    profile: Mapped["Profile"] = relationship(back_populates="user", uselist=False)
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "email": self.email,
-            # do not serialize the password, its a security breach
-        }
-    
-
-class Profile(db.Model):
-    __tablename__ = "profiles"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    name: Mapped[str] = mapped_column(String(50))
-    last_name: Mapped[str] = mapped_column(String(100))
-        
-    # relationship with other tables
-    user: Mapped["User"] = relationship(back_populates="profile")
-    planets: Mapped[list["Planet"]] = relationship(secondary="profile_planet", back_populates="profiles")
-    peoples: Mapped[list["People"]] = relationship(secondary="profile_people", back_populates="profiles")
+    favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
 
     def serialize(self):
         return {
             "id": self.id,
             "name": self.name,
             "last name": self.last_name,
-            "Favourite Planets": [planet.name_planet for planet in self.planets],
-            "Favourite People": [people.name_people for people in self.peoples]
+            "email": self.email,
+            "favorites": [fav.serialize() for fav in self.favorites]
+            # do not serialize the password, its a security breach
+        }
+    
+
+class Favorite(db.Model):
+    __tablename__ = "favorites"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+        
+    # relationship with other tables
+    user: Mapped["User"] = relationship(back_populates="favorites")
+    planets: Mapped[list["FavPlanet"]] = relationship(back_populates="favorite")
+    peoples: Mapped[list["FavPeople"]] = relationship(back_populates="favorite")
+
+    def serialize(self):
+        return {
+            "favorite_planets": [planet.serialize() for planet in self.planets],
+            "favorite_people": [people.serialize() for people in self.peoples]
+        }
+
+class FavPlanet(db.Model):
+    __tablename__ = "fav_planets"
+    fav_id: Mapped[int] = mapped_column(ForeignKey("favorites.id"), primary_key=True)
+    planet_id: Mapped[int] = mapped_column(ForeignKey("planets.id"), primary_key=True)
+
+   # relationship with other tables
+    planet: Mapped["Planet"] = relationship(back_populates="fav_planet") #child
+    favorite: Mapped["Favorite"] = relationship(back_populates="planets") #parent
+
+    def serialize(self):
+        return {
+            "fav_id":self.fav_id,
+            "planet_id": self.planet_id,
+            "planet_name": self.planet.name_planet
+        }
+    
+class FavPeople(db.Model):
+    __tablename__ = "fav_people"
+    fav_id: Mapped[int] = mapped_column(ForeignKey("favorites.id"), primary_key=True)
+    people_id: Mapped[int] = mapped_column(ForeignKey("peoples.id"), primary_key=True)
+
+
+   # relationship with other tables
+    people: Mapped["People"] = relationship(back_populates="fav_people") #child
+    favorite: Mapped["Favorite"] = relationship(back_populates="peoples") #parent
+
+    def serialize(self):
+        return {
+            "fav_id":self.fav_id,
+            "people_id": self.people_id,
+            "people_name": self.people.name_people
         }
     
 
@@ -63,7 +82,7 @@ class Planet(db.Model):
     name_planet: Mapped[str] = mapped_column(String(100), unique=True)
 
     # relationship with other tables
-    profiles: Mapped[list["Profile"]] = relationship(secondary="profile_planet", back_populates="planets")
+    fav_planet: Mapped[list["FavPlanet"]] = relationship(back_populates="planet")
 
     def serialize(self):
         return {
@@ -77,10 +96,10 @@ class People(db.Model):
     name_people: Mapped[str] = mapped_column(String(100), unique=True)
 
    # relationship with other tables
-    profiles: Mapped[list["Profile"]] = relationship(secondary="profile_people", back_populates="peoples")
+    fav_people: Mapped[list["FavPeople"]] = relationship(back_populates="people")
 
     def serialize(self):
         return {
             "id": self.id,
-            "people name": self.name_people
+            "name_people": self.name_people
         }
