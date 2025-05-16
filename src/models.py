@@ -38,6 +38,8 @@ class Favorite(db.Model):
 
     def serialize(self):
         return {
+            "id": self.id,
+            "user_id": self.user_id,
             "favorite_planets": [planet.serialize() for planet in self.planets],
             "favorite_people": [people.serialize() for people in self.peoples]
         }
